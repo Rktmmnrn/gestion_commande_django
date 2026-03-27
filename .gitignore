@@ -1,0 +1,30 @@
+# Base de données SQLite
+db.sqlite3
+*.sqlite3
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environnement virtuel
+venv/
+env/
+.env
+
+# Fichiers IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Fichiers système
+.DS_Store
+.DS_Store?
+*.log
+
+# Collections statiques/media
+/static/
+/media/
