@@ -1,4 +1,3 @@
-
 from rest_framework import viewsets
 from .models import Category, Product, Order, OrderItem
 from .serializers import CategorySerializer , ProductSerializer, OrderSerializer
