@@ -58,6 +58,20 @@ class OrderViewSet(viewsets.ModelViewSet):
         order = self.get_object()
         product_id = request.data.get('product')
         quantity = request.data.get('quantity', 1)
+
+        # validation des quantités
+        try:
+            quantity = int(quantity)
+            if quantity <= 0:
+                return Response (
+                    {'error': 'Quantity must be positive'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except ValueError:
+            return Response (
+                {'error': 'Quantity must be an integer'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
         # Vérifier que le produit existe
         try:
