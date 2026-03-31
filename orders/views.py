@@ -24,7 +24,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     
     def create(self, request, *args, **kwargs):
         # Extraire les items du body
-        items_data = request.data.pop('items', [])
+        items_data = request.data.get('items', [])
         
         # Passer les items au serializer via le context
         serializer = self.get_serializer(data=request.data, context={'items': items_data})
@@ -108,3 +108,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         
         serializer = OrderItemSerializer(item)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+class OrderItemViewSet(viewsets.ModelViewSet):
+    queryset = OrderItem.objects.all()
+    serializer_class = OrderItemSerializer

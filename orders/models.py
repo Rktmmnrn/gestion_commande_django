@@ -45,10 +45,10 @@ class Order(models.Model):
     
     def get_total(self):
         """Calcule le total de la commande en utilisant une requête optimisée"""
-        total=self.orderitem_set.aggregate(
+        total = self.orderitem_set.aggregate(
             total=Sum(F('quantity') * F('price'))
         )['total']
-        return total or 0
+        return float(total) if total else 0.0
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE)

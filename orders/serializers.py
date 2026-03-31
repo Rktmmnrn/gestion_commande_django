@@ -20,13 +20,13 @@ class OrderItemSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = OrderItem
-        fields = ['id', 'product', 'product_name', 'quantity', 'price', 'subtotal']
+        fields = ['id', 'product', 'product_name', 'product_price', 'quantity', 'price', 'subtotal']
     
     def get_subtotal(self, obj):
         return obj.quantity * obj.price
 
 class OrderSerializer(serializers.ModelSerializer):
-    items = OrderItemSerializer(many=True, read_only=True)
+    items = OrderItemSerializer(many=True, read_only=True, source='orderitem_set')
     total = serializers.SerializerMethodField()
     
     class Meta:
@@ -65,7 +65,7 @@ class OrderSerializer(serializers.ModelSerializer):
         items_data = self.context.get('items', [])
         
         if not items_data:
-            raise serializers.ValidationError("La commande doit au moin contenir un article")
+            raise serializers.ValidationError("La commande doit au moins contenir un article")
         
         order = Order.objects.create(**validated_data)
         

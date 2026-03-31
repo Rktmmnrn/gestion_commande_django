@@ -167,5 +167,11 @@ REST_FRAMEWORK={
     'PAGE_SIZE': 20,
     'DEFAULT_PERMISSION_CLASSES':[
         'rest_framework.permissions.AllowAny',
-    ]
+    ],
+    'DEFAULT_RENDERER_CLASSES': [ # pour éviter d'avoir du HTML dans les réponses d'erreur
+        'rest_framework.renderers.JSONRenderer',
+    ],
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+    ],
 }
