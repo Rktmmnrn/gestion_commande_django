@@ -122,6 +122,9 @@ Représente une commande pour une table.
 - status (CharField, choices: pending, preparing, ready, delivered, cancelled)
 - created_at (DateTimeField, auto_now_add=True)
 - updated_at (DateTimeField, auto_now=True)
+
+Méthodes :
+- get_total() : Calcule le montant total de la commande
 ```
 
 **Statuts disponibles :**
@@ -140,6 +143,9 @@ Représente un article dans une commande.
 - product (ForeignKey → Product)
 - quantity (PositiveIntegerField, default=1)
 - price (DecimalField, max_digits=10, decimal_places=2)
+
+Méthodes :
+- subtotal() : Calcule le sous-total de l'article (quantité × prix)
 ```
 
 ## 🔌 Endpoints API
@@ -338,6 +344,7 @@ python manage.py test
 - **djangorestframework-simplejwt** (5.3.0) : Authentification JWT
 - **django-filter** (23.2) : Filtrage avancé
 - **PyMySQL** (1.1.2) : Driver MySQL
+- **python-dotenv** (1.2.2) : Gestion des variables d'environnement
 - **sqlparse** (0.5.5) : Parsing SQL
 - **asgiref** (3.11.1) : Support ASGI
 
@@ -377,4 +384,4 @@ Ce projet est sous licence MIT.
 
 ---
 
-**Dernière mise à jour :** 29 mars 2026
+**Dernière mise à jour :** 31 mars 2026
