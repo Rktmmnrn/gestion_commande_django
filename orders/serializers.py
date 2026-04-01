@@ -20,10 +20,38 @@ class OrderItemSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = OrderItem
-        fields = ['id', 'product', 'product_name', 'product_price', 'quantity', 'price', 'subtotal']
+        fields = ['id', 'order', 'product', 'product_name', 'product_price', 'quantity', 'price', 'subtotal']
     
     def get_subtotal(self, obj):
         return obj.quantity * obj.price
+    
+    def validate(self, data):
+        """Valider les données du produit et de la commande"""
+        order = data.get('order')
+        product = data.get('product')
+        quantity = data.get('quantity')
+        
+        # Vérifier que l'ordre existe
+        if not order:
+            raise serializers.ValidationError("Une commande est requise pour créer un article")
+        
+        # Vérifier que le produit existe
+        if not product:
+            raise serializers.ValidationError("Un produit est requis")
+        
+        # Vérifier que le produit est disponible
+        if not product.available:
+            raise serializers.ValidationError(
+                f"Le produit '{product.name}' n'est pas disponible"
+            )
+        
+        # Vérifier la quantité
+        if quantity and quantity <= 0:
+            raise serializers.ValidationError(
+                "La quantité doit être positive"
+            )
+        
+        return data
 
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True, source='orderitem_set')

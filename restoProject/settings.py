@@ -123,6 +123,11 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:8080",
+    "http://localhost:5173",
+]
+
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:8080",
@@ -163,8 +168,9 @@ else:
     CORS_ALLOW_CREDENTIALS = True
 
 REST_FRAMEWORK={
+    # 'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'DEFAULT_PAGINATION_CLASS': None,
-    'PAGE_SIZE': 20,
+    # 'PAGE_SIZE': 20,
     'DEFAULT_PERMISSION_CLASSES':[
         'rest_framework.permissions.AllowAny',
     ],
@@ -174,4 +180,5 @@ REST_FRAMEWORK={
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
     ],
+    'DEFAULT_AUTHENTIFICATION_CLASSES': [],
 }

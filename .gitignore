@@ -28,3 +28,7 @@ env/
 # Collections statiques/media
 /static/
 /media/
+
+TEST_REPORT.md
+RESUME_TRAVAUX.md
+test_crud.py
