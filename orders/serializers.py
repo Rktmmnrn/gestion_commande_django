@@ -1,5 +1,37 @@
+from django.db import transaction
 from rest_framework import serializers
+from django.contrib.auth import get_user_model
 from .models import Category, Product, Order, OrderItem
+
+User = get_user_model()
+
+class UserMinimalSerializer(serializers.ModelSerializer):
+    """Sérialiseur minimal pour afficher created_by/updated_by"""
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'role']
+
+
+class UserSerializer(serializers.ModelSerializer):
+    """Sérialiseur complet pour la gestion des utilisateurs"""
+    
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'role', 'is_active', 'date_joined', 'last_login']
+        read_only_fields = ['date_joined', 'last_login']
+    
+    def create(self, validated_data):
+        user = User.objects.create_user(**validated_data)
+        return user
+    
+    def update(self, instance, validated_data):
+        # Mettre à jour les champs
+        instance.username = validated_data.get('username', instance.username)
+        instance.email = validated_data.get('email', instance.email)
+        instance.role = validated_data.get('role', instance.role)
+        instance.is_active = validated_data.get('is_active', instance.is_active)
+        instance.save()
+        return instance
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -8,10 +40,15 @@ class CategorySerializer(serializers.ModelSerializer):
 
 class ProductSerializer(serializers.ModelSerializer):
     category_name = serializers.ReadOnlyField(source='category.name')
+    created_by_info = UserMinimalSerializer(source='created_by', read_only=True)
+    updated_by_info = UserMinimalSerializer(source='updated_by', read_only=True)
     
     class Meta:
         model = Product
-        fields = ['id', 'name', 'price', 'category', 'category_name', 'available']
+        fields = ['id', 'name', 'price', 'category', 'category_name', 'available',
+                  'created_by', 'created_by_info', 'updated_by', 'updated_by_info',
+                  'created_at', 'updated_at']
+        read_only_fields = ['created_by', 'updated_by', 'created_at', 'updated_at']
 
 class OrderItemSerializer(serializers.ModelSerializer):
     product_name = serializers.ReadOnlyField(source='product.name')
@@ -21,9 +58,9 @@ class OrderItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderItem
         fields = ['id', 'order', 'product', 'product_name', 'product_price', 'quantity', 'price', 'subtotal']
-    
+
     def get_subtotal(self, obj):
-        return obj.quantity * obj.price
+        return (obj.quantity or 0) * (obj.price or 0)
     
     def validate(self, data):
         """Valider les données du produit et de la commande"""
@@ -56,11 +93,15 @@ class OrderItemSerializer(serializers.ModelSerializer):
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True, source='orderitem_set')
     total = serializers.SerializerMethodField()
-    
+    created_by_info = UserMinimalSerializer(source='created_by', read_only=True)
+    updated_by_info = UserMinimalSerializer(source='updated_by', read_only=True)
+
     class Meta:
         model = Order
-        fields = ['id', 'table_number', 'status', 'items', 'total', 'created_at', 'updated_at']
-        read_only_fields = ['created_at', 'updated_at']
+        fields = ['id', 'table_number', 'status', 'items', 'total', 
+                  'created_at', 'updated_at',
+                  'created_by', 'created_by_info', 'updated_by', 'updated_by_info']
+        read_only_fields = ['created_at', 'updated_at', 'created_by', 'updated_by']
     
     def get_total(self, obj):
         return obj.get_total()
@@ -95,36 +136,45 @@ class OrderSerializer(serializers.ModelSerializer):
         if not items_data:
             raise serializers.ValidationError("La commande doit au moins contenir un article")
         
-        order = Order.objects.create(**validated_data)
+        with transaction.atomic():
+            order = Order.objects.create(**validated_data)
         
-        for item_data in items_data:
-            product_id = item_data.get('product')
-            quantity = item_data.get('quantity', 1)
-            
-            if not product_id:
-                order.delete()
-                raise serializers.ValidationError("Chaque article doit avoir un ID de produit")
-            
-            try:
-                product = Product.objects.get(id=product_id)
-                if not product.available:
+            for item_data in items_data:
+                product_id = item_data.get('product')
+                quantity = item_data.get('quantity', 1)
+                
+                if not product_id:
                     order.delete()
-                    raise serializers.ValidationError(
-                        f"Le produit '{product.name}' n'est pas disponible"
+                    raise serializers.ValidationError("Chaque article doit avoir un ID de produit")
+                
+                try:
+                    product = Product.objects.get(id=product_id)
+                    if not product.available:
+                        order.delete()
+                        raise serializers.ValidationError(
+                            f"Le produit '{product.name}' n'est pas disponible"
+                        )
+                    if quantity <= 0:
+                        order.delete()
+                        raise serializers.ValidationError(
+                            f"La quantité pour '{product.name}' doit être positive"
+                        )
+                    OrderItem.objects.create(
+                        order=order,
+                        product=product,
+                        quantity=quantity,
+                        price=product.price
                     )
-                if quantity <= 0:
+                except Product.DoesNotExist:
                     order.delete()
-                    raise serializers.ValidationError(
-                        f"La quantité pour '{product.name}' doit être positive"
-                    )
-                OrderItem.objects.create(
-                    order=order,
-                    product=product,
-                    quantity=quantity,
-                    price=product.price
-                )
-            except Product.DoesNotExist:
-                order.delete()
-                raise serializers.ValidationError(f"Le produit avec l'ID {product_id} n'existe pas")
-        
-        return order
+                    raise serializers.ValidationError(f"Le produit avec l'ID {product_id} n'existe pas")
+            
+            return order
+
+    def update(self, instance, validated_data):
+        # Mettre à jour updated_by
+        request = self.context.get('request')
+        instance.updated_by = request.user if request else None
+        instance.save()
+
+        return super().update(instance, validated_data)
