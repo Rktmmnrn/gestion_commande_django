@@ -20,17 +20,22 @@ Une API REST complète basée sur Django REST Framework pour gérer les commande
 ## ✨ Caractéristiques
 
 - ✅ **API RESTful complète** : CRUD complet pour tous les modèles
+- ✅ **Authentification JWT** : Tokens d'accès et de rafraîchissement avec SimpleJWT
+- ✅ **Système de rôles** : Admin et Waiter avec permissions personnalisées
+- ✅ **Gestion des utilisateurs** : Model User personnalisé avec rôle et synchronisation is_staff
 - ✅ **Gestion des catégories** : Organiser les produits par catégorie
 - ✅ **Gestion des produits** : Produits avec prix, disponibilité et catégorie
 - ✅ **Gestion des commandes** : Commandes avec statuts (en attente, en préparation, prêt, livré, annulé)
+- ✅ **Logique intelligente de commandes** : Réutilisation automatique des commandes "pending" (Option B)
 - ✅ **Calcul automatique** : Totaux de commande calculés en temps réel
 - ✅ **Filtrage avancé** : Filtrer par disponibilité, catégorie, table, statut
-- ✅ **Validations métier** : Vérification des produits disponibles, des quantités positives, des commandes actives
+- ✅ **Validations métier** : Vérification des produits disponibles, des quantités positives
 - ✅ **Actions personnalisées** : Endpoints spécialisés pour mettre à jour le statut et ajouter des articles
-- ✅ **Tests complets** : 25 tests CRUD validant l'intégrité du système (100% de passage)
+- ✅ **Audit trail** : Champs created_by/updated_by pour tracer les modifications
+- ✅ **Tests complets** : 25+ tests CRUD validant l'intégrité du système
 - ✅ **CORS activé** : Support complet du cross-origin pour les frontends
 - ✅ **Django Admin** : Interface d'administration intégrée
-- ✅ **JWT Support** : Authentification via tokens (optionnel)
+- ✅ **Permissions granulaires** : Contrôle d'accès basé sur les rôles
 
 ---
 
@@ -95,7 +100,115 @@ DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
 
 ---
 
-## 🚀 Démarrage du Serveur
+## � Authentification & Rôles
+
+### Système d'Authentification
+
+L'API utilise **JWT (JSON Web Tokens)** via **SimpleJWT** pour l'authentification :
+
+#### 1. Obtenir un Token
+
+```bash
+curl -X POST http://localhost:8000/api/token/ \
+  -H "Content-Type: application/json" \
+  -d '{"username": "john", "password": "secure123"}'
+```
+
+**Réponse:**
+```json
+{
+  "access": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+  "refresh": "eyJ0eXAiOiJKV1QiLCJhbGc..."
+}
+```
+
+#### 2. Utiliser le Token dans les Requêtes
+
+```bash
+curl -X GET http://localhost:8000/api/orders/ \
+  -H "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGc..."
+```
+
+#### 3. Rafraîchir le Token Expiré
+
+```bash
+curl -X POST http://localhost:8000/api/token/refresh/ \
+  -H "Content-Type: application/json" \
+  -d '{"refresh": "eyJ0eXAiOiJKV1QiLCJhbGc..."}'
+```
+
+### Rôles & Permissions
+
+#### Utilisateurs Waiter (Serveur)
+- ✅ Créer et lire les commandes
+- ✅ Lire les produits et catégories
+- ❌ Modifier/supprimer les commandes
+- ❌ Gérer les utilisateurs et produits
+
+#### Utilisateurs Admin (Administrateur)
+- ✅ Accès complet à tous les endpoints
+- ✅ Gérer les utilisateurs
+- ✅ Modifier/supprimer les commandes
+- ✅ Gérer les produits et catégories
+
+#### Configuration des Permissions
+
+Dans `settings.py` :
+```python
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
+```
+
+#### Créer un Utilisateur
+
+Via l'admin Django :
+```bash
+python manage.py createsuperuser
+```
+
+Ou via l'API (admin seulement) :
+```bash
+curl -X POST http://localhost:8000/api/users/ \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "waiter1",
+    "password": "securepass",
+    "role": "waiter"
+  }'
+```
+
+---
+
+## 📌 Logique des Commandes (Option B)
+
+Le système utilise une **logique intelligente** pour les commandes :
+
+1. **Si une commande "pending" existe** pour la table → les nouveaux articles y sont **ajoutés**
+2. **Si aucune commande "pending"** n'existe → une **nouvelle commande** est créée
+3. **Les quantités augmentent automatiquement** si un produit est déjà dans la commande
+
+**Exemple:**
+```bash
+# Première commande pour table 1
+POST /orders/ → Crée commande #1 avec produit A (qty: 1)
+
+# Deuxième envoi pour table 1 (même produit A)
+POST /orders/ → Ajoute à commande #1, produit A (qty: 2)
+
+# Envoi avec produit B pour table 1
+POST /orders/ → Ajoute à commande #1, produit B (qty: 1)
+```
+
+---
+
+## �🚀 Démarrage du Serveur
 
 ```bash
 python manage.py runserver
