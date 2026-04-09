@@ -192,8 +192,7 @@ REST_FRAMEWORK={
     'DEFAULT_PAGINATION_CLASS': None,
     # 'PAGE_SIZE': 20,
     'DEFAULT_PERMISSION_CLASSES':[
-        'rest_framework.permissions.AllowAny',
-        # 'rest_framework.permissions.isAuthenticated',
+        'rest_framework.permissions.IsAuthenticated',  # ✅ CHANGÉ: AllowAny -> IsAuthenticated
     ],
     'DEFAULT_RENDERER_CLASSES': [ # pour éviter d'avoir du HTML dans les réponses d'erreur
         'rest_framework.renderers.JSONRenderer',
@@ -201,7 +200,7 @@ REST_FRAMEWORK={
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
     ],
-    'DEFAULT_AUTHENTIFICATION_CLASSES': [
+    'DEFAULT_AUTHENTICATION_CLASSES': [  # ✅ CORRIGÉ: AUTHENTIFICATION -> AUTHENTICATION
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
 }

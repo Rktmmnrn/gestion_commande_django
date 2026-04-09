@@ -7,7 +7,6 @@ from django.contrib.auth import get_user_model
 from .models import Category, Product, Order, OrderItem
 from .serializers import CategorySerializer , ProductSerializer, OrderSerializer, OrderItemSerializer, UserSerializer
 from .permissions import IsAdmin, IsAdminOrReadOnly, IsOwnerOrAdmin
-from rest_framework.permissions import AllowAny
 
 User = get_user_model()
 
@@ -19,7 +18,8 @@ class UserViewSet(viewsets.ModelViewSet):
     """
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [AllowAny]  ← SUPPRIMÉ
+    # permission_classes = [IsAuthenticated]
     
     def get_permissions(self):
         """
@@ -30,9 +30,11 @@ class UserViewSet(viewsets.ModelViewSet):
             self.permission_classes = [IsAdmin]
         elif self.action in ['update', 'partial_update']:
             # Admins ou propriétaire pour la modification
+            # self.permission_classes = [AllowAny]
             self.permission_classes = [IsOwnerOrAdmin]
         else:
             # Lecture: authentifié requis
+            # self.permission_classes = [AllowAny]
             self.permission_classes = [IsAuthenticated]
         return super().get_permissions()
     
@@ -48,7 +50,7 @@ class UserViewSet(viewsets.ModelViewSet):
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset= Category.objects.all()
     serializer_class= CategorySerializer
-    permission_classes = [AllowAny]
+    # permission_classes = [AllowAny]  ← SUPPRIMÉ, utilise IsAuthenticated par défaut
     # permission_classes = [IsAdminOrReadOnly]
 
 class ProductViewSet(viewsets.ModelViewSet):
@@ -56,7 +58,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     serializer_class= ProductSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['available', 'category']
-    permission_classes = [AllowAny]
+    # permission_classes = [AllowAny]  ← SUPPRIMÉ
     # permission_classes = [IsAdminOrReadOnly]
 
     def perform_create(self, serializer):
@@ -72,8 +74,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     serializer_class= OrderSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['table_number', 'status']
-    permission_classes = [AllowAny]
-    # permission_classes = [IsAuthenticated]
+    # permission_classes = [AllowAny]  ← SUPPRIMÉ
 
     def get_permissions(self):
         """
@@ -81,9 +82,11 @@ class OrderViewSet(viewsets.ModelViewSet):
         """
         if self.action in ['update', 'partial_update', 'destroy']:
             # Seuls les admins peuvent modifier/supprimer les commandes existantes
+            # self.permission_classes = [AllowAny]
             self.permission_classes = [IsAdmin]
         else:
             # Les serveurs peuvent créer et lire
+            # self.permission_classes = [AllowAny]
             self.permission_classes = [IsAuthenticated]
         return super().get_permissions()
     
@@ -185,5 +188,5 @@ class OrderViewSet(viewsets.ModelViewSet):
 class OrderItemViewSet(viewsets.ModelViewSet):
     queryset = OrderItem.objects.all()
     serializer_class = OrderItemSerializer
-    permission_classes = [AllowAny]
+    # permission_classes = [AllowAny]  ← SUPPRIMÉ
     # permission_classes = [IsAuthenticated]

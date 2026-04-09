@@ -1,9 +1,30 @@
 from django.db import transaction
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import Category, Product, Order, OrderItem
 
 User = get_user_model()
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """
+    Personnalisation du serializer JWT pour ajouter username, role, is_staff, is_superuser
+    """
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        
+        # Ajouter les données utilisateur dans le token
+        token['user_id'] = user.id
+        token['username'] = user.username
+        token['is_staff'] = user.is_staff
+        token['is_superuser'] = user.is_superuser
+        
+        # Ajouter le rôle si c'est un utilisateur personnalisé
+        if hasattr(user, 'role'):
+            token['role'] = user.role
+        
+        return token
 
 class UserMinimalSerializer(serializers.ModelSerializer):
     """Sérialiseur minimal pour afficher created_by/updated_by"""
@@ -107,67 +128,86 @@ class OrderSerializer(serializers.ModelSerializer):
         return obj.get_total()
     
     def validate(self, data):
-        # Vérifier s'il existe une commande active pour cette table
+        # Validation basique - la logique de commande existante est dans create()
         table_number = data.get('table_number')
         
-        # Récupérer la commande existante (pour les mises à jour)
-        instance = self.instance
-        
-        # Vérifier s'il existe une commande active pour cette table
-        active_orders = Order.objects.filter(
-            table_number=table_number,
-            status__in=['pending', 'preparing', 'ready']
-        )
-        
-        # Si c'est une mise à jour, exclure la commande actuelle
-        if instance:
-            active_orders = active_orders.exclude(id=instance.id)
-        
-        if active_orders.exists():
-            raise serializers.ValidationError(
-                f"La table {table_number} a déjà une commande en cours (statut: {active_orders.first().status})"
-            )
+        if not table_number:
+            raise serializers.ValidationError("Le numéro de table est requis")
         
         return data
 
     def create(self, validated_data):
         items_data = self.context.get('items', [])
+        request = self.context.get('request')
+        table_number = validated_data.get('table_number')
         
         if not items_data:
             raise serializers.ValidationError("La commande doit au moins contenir un article")
         
         with transaction.atomic():
-            order = Order.objects.create(**validated_data)
+            # 🔍 OPTION B: Vérifier s'il existe une commande pending pour cette table
+            pending_order = Order.objects.filter(
+                table_number=table_number,
+                status='pending'
+            ).first()
+            
+            if pending_order:
+                # Réutiliser la commande existante
+                order = pending_order
+                print(f'📌 Réutilisation commande existante #{order.id} pour table {table_number}')
+            else:
+                # Créer une nouvelle commande
+                validated_data['created_by'] = request.user if request else None
+                validated_data['updated_by'] = request.user if request else None
+                order = Order.objects.create(**validated_data)
+                print(f'✨ Nouvelle commande #{order.id} créée pour table {table_number}')
         
+            # Ajouter les items à la commande (nouvelle ou existante)
             for item_data in items_data:
                 product_id = item_data.get('product')
                 quantity = item_data.get('quantity', 1)
                 
                 if not product_id:
-                    order.delete()
                     raise serializers.ValidationError("Chaque article doit avoir un ID de produit")
                 
                 try:
                     product = Product.objects.get(id=product_id)
                     if not product.available:
-                        order.delete()
                         raise serializers.ValidationError(
                             f"Le produit '{product.name}' n'est pas disponible"
                         )
                     if quantity <= 0:
-                        order.delete()
                         raise serializers.ValidationError(
                             f"La quantité pour '{product.name}' doit être positive"
                         )
-                    OrderItem.objects.create(
-                        order=order,
-                        product=product,
-                        quantity=quantity,
-                        price=product.price
-                    )
+                    
+                    # ✅ Vérifier si le produit existe déjà dans la commande
+                    existing_item = OrderItem.objects.filter(
+                        order=order, 
+                        product=product
+                    ).first()
+                    
+                    if existing_item:
+                        # Augmenter la quantité
+                        existing_item.quantity += quantity
+                        existing_item.save()
+                        print(f'➕ Quantité augmentée pour {product.name} ({existing_item.quantity})')
+                    else:
+                        # Créer un nouvel item
+                        OrderItem.objects.create(
+                            order=order,
+                            product=product,
+                            quantity=quantity,
+                            price=product.price
+                        )
+                        print(f'🆕 Nouvel item: {product.name} x{quantity}')
+                        
                 except Product.DoesNotExist:
-                    order.delete()
                     raise serializers.ValidationError(f"Le produit avec l'ID {product_id} n'existe pas")
+            
+            # Mettre à jour le timestamp de la commande
+            order.updated_by = request.user if request else None
+            order.save()
             
             return order
 
