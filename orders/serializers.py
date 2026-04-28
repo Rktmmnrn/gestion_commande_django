@@ -4,56 +4,6 @@ from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import Category, Product, Order, OrderItem
 
-User = get_user_model()
-
-class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    """
-    Personnalisation du serializer JWT pour ajouter username, role, is_staff, is_superuser
-    """
-    @classmethod
-    def get_token(cls, user):
-        token = super().get_token(user)
-        
-        # Ajouter les données utilisateur dans le token
-        token['user_id'] = user.id
-        token['username'] = user.username
-        token['is_staff'] = user.is_staff
-        token['is_superuser'] = user.is_superuser
-        
-        # Ajouter le rôle si c'est un utilisateur personnalisé
-        if hasattr(user, 'role'):
-            token['role'] = user.role
-        
-        return token
-
-class UserMinimalSerializer(serializers.ModelSerializer):
-    """Sérialiseur minimal pour afficher created_by/updated_by"""
-    class Meta:
-        model = User
-        fields = ['id', 'username', 'role']
-
-
-class UserSerializer(serializers.ModelSerializer):
-    """Sérialiseur complet pour la gestion des utilisateurs"""
-    
-    class Meta:
-        model = User
-        fields = ['id', 'username', 'email', 'role', 'is_active', 'date_joined', 'last_login']
-        read_only_fields = ['date_joined', 'last_login']
-    
-    def create(self, validated_data):
-        user = User.objects.create_user(**validated_data)
-        return user
-    
-    def update(self, instance, validated_data):
-        # Mettre à jour les champs
-        instance.username = validated_data.get('username', instance.username)
-        instance.email = validated_data.get('email', instance.email)
-        instance.role = validated_data.get('role', instance.role)
-        instance.is_active = validated_data.get('is_active', instance.is_active)
-        instance.save()
-        return instance
-
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
@@ -61,15 +11,11 @@ class CategorySerializer(serializers.ModelSerializer):
 
 class ProductSerializer(serializers.ModelSerializer):
     category_name = serializers.ReadOnlyField(source='category.name')
-    created_by_info = UserMinimalSerializer(source='created_by', read_only=True)
-    updated_by_info = UserMinimalSerializer(source='updated_by', read_only=True)
     
     class Meta:
         model = Product
-        fields = ['id', 'name', 'price', 'category', 'category_name', 'available',
-                  'created_by', 'created_by_info', 'updated_by', 'updated_by_info',
-                  'created_at', 'updated_at']
-        read_only_fields = ['created_by', 'updated_by', 'created_at', 'updated_at']
+        fields = ['id', 'name', 'price', 'category', 'category_name', 'available']
+        read_only_fields = ['id']
 
 class OrderItemSerializer(serializers.ModelSerializer):
     product_name = serializers.ReadOnlyField(source='product.name')
@@ -112,23 +58,19 @@ class OrderItemSerializer(serializers.ModelSerializer):
         return data
 
 class OrderSerializer(serializers.ModelSerializer):
-    items = OrderItemSerializer(many=True, read_only=True, source='orderitem_set')
+    items = OrderItemSerializer(many=True, read_only=True, source='items')
     total = serializers.SerializerMethodField()
-    created_by_info = UserMinimalSerializer(source='created_by', read_only=True)
-    updated_by_info = UserMinimalSerializer(source='updated_by', read_only=True)
 
     class Meta:
         model = Order
         fields = ['id', 'table_number', 'status', 'items', 'total', 
-                  'created_at', 'updated_at',
-                  'created_by', 'created_by_info', 'updated_by', 'updated_by_info']
-        read_only_fields = ['created_at', 'updated_at', 'created_by', 'updated_by']
+                  'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at']
     
     def get_total(self, obj):
         return obj.get_total()
     
     def validate(self, data):
-        # Validation basique - la logique de commande existante est dans create()
         table_number = data.get('table_number')
         
         if not table_number:
@@ -145,7 +87,7 @@ class OrderSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("La commande doit au moins contenir un article")
         
         with transaction.atomic():
-            # 🔍 OPTION B: Vérifier s'il existe une commande pending pour cette table
+            # Vérifier s'il existe une commande pending pour cette table
             pending_order = Order.objects.filter(
                 table_number=table_number,
                 status='pending'
@@ -156,9 +98,6 @@ class OrderSerializer(serializers.ModelSerializer):
                 order = pending_order
                 print(f'📌 Réutilisation commande existante #{order.id} pour table {table_number}')
             else:
-                # Créer une nouvelle commande
-                validated_data['created_by'] = request.user if request else None
-                validated_data['updated_by'] = request.user if request else None
                 order = Order.objects.create(**validated_data)
                 print(f'✨ Nouvelle commande #{order.id} créée pour table {table_number}')
         
@@ -204,17 +143,13 @@ class OrderSerializer(serializers.ModelSerializer):
                         
                 except Product.DoesNotExist:
                     raise serializers.ValidationError(f"Le produit avec l'ID {product_id} n'existe pas")
-            
-            # Mettre à jour le timestamp de la commande
-            order.updated_by = request.user if request else None
-            order.save()
-            
+
+            order.save()            
             return order
 
     def update(self, instance, validated_data):
         # Mettre à jour updated_by
         request = self.context.get('request')
-        instance.updated_by = request.user if request else None
         instance.save()
 
         return super().update(instance, validated_data)

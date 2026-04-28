@@ -1,58 +1,30 @@
 from rest_framework import permissions
+from django.contrib.auth.hashers import check_password
 
-class IsAdmin(permissions.BasePermission):
+class IsAdminPasswordVerified(permissions.BasePermission):
     """
-    Permission pour les administrateurs uniquement.
+    Permission qui vérifie le mot de passe admin via le header 'X-Admin-Password'.
+    Utilisée pour protéger les opérations CRUD sensibles.
     """
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and request.user.role == 'admin'
-    
-    def has_object_permission(self, request, view, obj):
-        return request.user and request.user.is_authenticated and request.user.role == 'admin'
+        if request.method in permissions.SAFE_METHODS:
+            return request.user and request.user.is_authenticated
 
+        # Pour les opérations d'écriture, vérifier le header
+        admin_password = request.headers.get('X-Admin-Password')
+        if not admin_password:
+            return False
 
-class IsWaiter(permissions.BasePermission):
-    """
-    Permission pour les serveurs uniquement.
-    """
-    def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and request.user.role == 'waiter'
-    
-    def has_object_permission(self, request, view, obj):
-        return request.user and request.user.is_authenticated and request.user.role == 'waiter'
+        # Vérifier que l'utilisateur est bien un superuser et que le mot de passe correspond
+        user = request.user
+        if not user.is_authenticated or not user.is_superuser:
+            return False
+
+        return check_password(admin_password, user.password)
 
 
 class IsAdminOrReadOnly(permissions.BasePermission):
-    """
-    Les administrateurs peuvent créer/modifier/supprimer.
-    Les serveurs peuvent seulement lire.
-    """
     def has_permission(self, request, view):
-        # Permettre les requêtes SAFE_METHODS (GET, HEAD, OPTIONS) à tous les authentifiés
         if request.method in permissions.SAFE_METHODS:
             return request.user and request.user.is_authenticated
-        
-        # Les opérations d'écriture nécessitent le rôle admin
-        return request.user and request.user.is_authenticated and request.user.role == 'admin'
-    
-    def has_object_permission(self, request, view, obj):
-        # Permettre la lecture à tous les authentifiés
-        if request.method in permissions.SAFE_METHODS:
-            return request.user and request.user.is_authenticated
-        
-        # Les opérations d'écriture nécessitent le rôle admin
-        return request.user and request.user.is_authenticated and request.user.role == 'admin'
-
-
-class IsOwnerOrAdmin(permissions.BasePermission):
-    """
-    Permission qui permet à un utilisateur de modifier son propre profil,
-    ou à un administrateur de tout modifier.
-    """
-    def has_object_permission(self, request, view, obj):
-        # L'administrateur a tous les droits
-        if request.user.role == 'admin':
-            return True
-        
-        # L'utilisateur peut modifier son propre profil
-        return obj == request.user
+        return IsAdminPasswordVerified().has_permission(request, view)
