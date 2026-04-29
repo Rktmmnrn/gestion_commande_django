@@ -2,17 +2,29 @@
 
 [![Tests Status](https://img.shields.io/badge/Tests-25/25%20OK-brightgreen)](./TEST_REPORT.md) [![Django](https://img.shields.io/badge/Django-6.0.3-darkgreen)](https://www.djangoproject.com/) [![DRF](https://img.shields.io/badge/DRF-3.14.0-darkblue)](https://www.django-rest-framework.org/)
 
-Une API REST complète basée sur Django REST Framework pour gérer les commandes, produits et catégories d'un restaurant.
+Une API REST complète basée sur **Django REST Framework** pour gérer les commandes, produits et catégories d'un restaurant.
+
+### 📌 Résumé du Projet
+
+- **Type** : API REST Django
+- **Framework** : Django 6.0.3 + Django REST Framework 3.14.0
+- **Authentification** : JWT (Simple JWT 5.3.0)
+- **Base de données** : SQLite (supports MySQL/PostgreSQL)
+- **Tests** : 25+ tests complets (100% de passage)
+- **État** : ✅ Production Ready
 
 ## 📋 Table des Matières
 
 - [Caractéristiques](#caractéristiques)
+- [Architecture du Projet](#architecture-du-projet)
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Points Terminaux API](#points-terminaux-api)
-- [Exemples d'Utilisation](#exemples-dutilisation)
-- [Résultats des Tests](#résultats-des-tests)
 - [Modèles de Données](#modèles-de-données)
+- [Système d'Authentification](#système-dauthentification)
+- [Système de Permissions](#système-de-permissions)
+- [Exemples d'Utilisation](#exemples-dutilisation)
+- [Tests](#tests)
 - [Gestion des Erreurs](#gestion-des-erreurs)
 
 ---
@@ -39,6 +51,53 @@ Une API REST complète basée sur Django REST Framework pour gérer les commande
 
 ---
 
+## 🏗️ Architecture du Projet
+
+### Structure des Répertoires
+
+```
+django_gestion_commande/
+├── manage.py                 # Utilitaire de gestion Django
+├── db.sqlite3               # Base de données SQLite
+├── requirements.txt         # Dépendances Python
+├── README.md               # Documentation du projet
+│
+├── restoProject/           # Configuration principale du projet
+│   ├── __init__.py
+│   ├── settings.py         # Configuration Django (DB, apps, middleware)
+│   ├── urls.py            # Routes principales
+│   ├── asgi.py            # Configuration ASGI (serveurs async)
+│   └── wsgi.py            # Configuration WSGI (serveurs de production)
+│
+└── orders/                 # Application Django principale
+    ├── __init__.py
+    ├── models.py          # Modèles de données (Category, Product, Order, OrderItem)
+    ├── views.py           # ViewSets API (CategoryViewSet, ProductViewSet, OrderViewSet, OrderItemViewSet)
+    ├── serializers.py     # Sérialiseurs DRF pour validation/sérialisation
+    ├── urls.py            # Routage des endpoints API
+    ├── permissions.py     # Classes de permissions personnalisées
+    ├── admin.py           # Configuration Django Admin
+    ├── apps.py            # Configuration de l'application
+    ├── tests.py           # Tests unitaires et d'intégration API
+    └── migrations/        # Migrations de base de données
+        ├── __init__.py
+        └── 0001_initial.py
+```
+
+### Stack Technologique
+
+| Composant | Version | Rôle |
+|-----------|---------|------|
+| **Django** | 6.0.3 | Framework web backend |
+| **Django REST Framework** | 3.14.0 | API RESTful avec sérialisation JSON |
+| **JWT (SimpleJWT)** | 5.3.0 | Authentification par tokens |
+| **Django-CORS** | 4.3.1 | Support CORS pour frontends |
+| **Django-Filter** | 23.2 | Filtrage avancé des endpoints |
+| **SQLite** | Natif | Base de données par défaut |
+| **PyMySQL** | 1.1.2 | Support MySQL optionnel |
+
+---
+
 ## 🛠️ Prérequis
 
 - **Python** 3.8+
@@ -49,7 +108,353 @@ Une API REST complète basée sur Django REST Framework pour gérer les commande
 
 ## 📦 Installation Complète
 
-### 1. Clone/Accès au répertoire
+###
+
+### 6. Démarrer le serveur de développement
+
+```bash
+python manage.py runserver
+```
+
+Le serveur sera disponible sur `http://localhost:8000`
+
+---
+
+## 📊 Modèles de Données
+
+### Category (Catégorie)
+Représente les catégories de produits du restaurant.
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| `id` | AutoField | Identifiant unique (clé primaire) |
+| `name` | CharField(100) | Nom de la catégorie |
+
+**Exemple:**
+```json
+{
+  "id": 1,
+  "name": "Pizzas"
+}
+```
+
+---
+
+### Product (Produit)
+Représente les produits disponibles dans le restaurant.
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| `id` | AutoField | Identifiant unique |
+| `name` | CharField(200) | Nom du produit |
+| `price` | DecimalField | Prix du produit (max 10 chiffres, 2 décimales) |
+| `category` | ForeignKey(Category) | Catégorie associée |
+| `available` | BooleanField | Disponibilité du produit (défaut: True) |
+
+**Exemple:**
+```json
+{
+  "id": 1,
+  "name": "Pizza Margherita",
+  "price": "15.99",
+  "category": 1,
+  "category_name": "Pizzas",
+  "available": true
+}
+```
+
+---
+
+### Order (Commande)
+Représente une commande client pour une table spécifique.
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| `id` | AutoField | Identifiant unique |
+| `table_number` | IntegerField | Numéro de table |
+| `status` | CharField | Statut de la commande (voir ci-dessous) |
+| `created_at` | DateTimeField | Date/heure de création |
+| `updated_at` | DateTimeField | Date/heure de dernière modification |
+
+**Statuts disponibles:**
+- `pending` - En attente
+- `preparing` - En préparation
+- `ready` - Prêt
+- `delivered` - Livré
+- `cancelled` - Annulé
+
+**Exemple:**
+```json
+{
+  "id": 1,
+  "table_number": 5,
+  "status": "pending",
+  "items": [...],
+  "total": 31.98,
+  "created_at": "2026-04-29T10:30:00Z",
+  "updated_at": "2026-04-29T10:35:00Z"
+}
+```
+
+**Logique spéciale:**
+- Si une commande "pending" existe déjà pour la table, elle est **réutilisée** (mode "Option B")
+- Le total est calculé automatiquement via `get_total()`
+
+---
+
+### OrderItem (Ligne de Commande)
+Représente un article spécifique dans une commande.
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| `id` | AutoField | Identifiant unique |
+| `order` | ForeignKey(Order) | Commande associée |
+| `product` | ForeignKey(Product) | Produit commandé |
+| `quantity` | PositiveIntegerField | Quantité commandée |
+| `price` | DecimalField | Prix unitaire (capturé à la création) |
+
+**Méthodes:**
+- `subtotal()` - Retourne `quantity × price`
+
+**Exemple:**
+```json
+{
+  "id": 1,
+  "order": 1,
+  "product": 1,
+  "product_name": "Pizza Margherita",
+  "product_price": "15.99",
+  "quantity": 2,
+  "price": "15.99",
+  "subtotal": 31.98
+}
+```
+
+---
+
+## 🔐 Système d'Authentification
+
+### JWT (JSON Web Tokens)
+
+L'API utilise **Django REST Framework SimpleJWT** pour l'authentification sans état.
+
+#### 1. Obtenir les tokens
+
+**Endpoint:** `POST /api/token/`
+
+```bash
+curl -X POST http://localhost:8000/api/token/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "your_username",
+    "password": "your_password"
+  }'
+```
+
+**Réponse:**
+```json
+{
+  "access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+#### 2. Utiliser le token d'accès
+
+Inclure le token dans le header `Authorization` pour les requêtes protégées:
+
+```bash
+curl -X GET http://localhost:8000/api/orders/ \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+#### 3. Rafraîchir le token
+
+**Endpoint:** `POST /api/token/refresh/`
+
+```bash
+curl -X POST http://localhost:8000/api/token/refresh/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }'
+```
+
+---
+
+## 🔒 Système de Permissions
+
+### Classes de Permissions Personnalisées
+
+#### 1. `IsAdminPasswordVerified`
+Vérifie le mot de passe admin via le header `X-Admin-Password` pour les opérations d'écriture.
+
+**Règles:**
+- Les méthodes SAFE (GET, HEAD, OPTIONS) : Authentification simple requise
+- Les opérations d'écriture (POST, PUT, DELETE) : Header `X-Admin-Password` + superuser requis
+
+**Exemple:**
+```bash
+curl -X POST http://localhost:8000/api/categories/ \
+  -H "Authorization: Bearer TOKEN" \
+  -H "X-Admin-Password: admin_password" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Desserts"}'
+```
+
+#### 2. `IsAdminOrReadOnly`
+- Lecture (`GET`) : Authentification requise
+- Écriture : Permissions admin requises
+
+**Appliquée à:** Categories, Products
+
+---
+
+## 📡 Points Terminaux API
+
+### Base URL
+```
+http://localhost:8000/api/
+```
+
+### Categories (Catégories)
+
+| Méthode | Endpoint | Description | Permissions |
+|---------|----------|-------------|-------------|
+| `GET` | `/categories/` | Lister toutes les catégories | Authentifié |
+| `POST` | `/categories/` | Créer une catégorie | Admin |
+| `GET` | `/categories/{id}/` | Récupérer une catégorie | Authentifié |
+| `PUT` | `/categories/{id}/` | Mettre à jour une catégorie | Admin |
+| `PATCH` | `/categories/{id}/` | Mise à jour partielle | Admin |
+| `DELETE` | `/categories/{id}/` | Supprimer une catégorie | Admin |
+
+**Exemple - Créer une catégorie:**
+```bash
+curl -X POST http://localhost:8000/api/categories/ \
+  -H "Authorization: Bearer TOKEN" \
+  -H "X-Admin-Password: password" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Pizzas"}'
+```
+
+---
+
+### Products (Produits)
+
+| Méthode | Endpoint | Description | Paramètres |
+|---------|----------|-------------|------------|
+| `GET` | `/products/` | Lister tous les produits | `available`, `category` |
+| `POST` | `/products/` | Créer un produit | - |
+| `GET` | `/products/{id}/` | Récupérer un produit | - |
+| `PUT` | `/products/{id}/` | Mettre à jour un produit | - |
+| `PATCH` | `/products/{id}/` | Mise à jour partielle | - |
+| `DELETE` | `/products/{id}/` | Supprimer un produit | - |
+
+**Exemple - Lister les produits avec filtrage:**
+```bash
+# Produits disponibles seulement
+curl -X GET "http://localhost:8000/api/products/?available=true" \
+  -H "Authorization: Bearer TOKEN"
+
+# Produits d'une catégorie
+curl -X GET "http://localhost:8000/api/products/?category=1" \
+  -H "Authorization: Bearer TOKEN"
+```
+
+**Exemple - Créer un produit:**
+```bash
+curl -X POST http://localhost:8000/api/products/ \
+  -H "Authorization: Bearer TOKEN" \
+  -H "X-Admin-Password: password" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Pizza Margherita",
+    "price": 15.99,
+    "category": 1,
+    "available": true
+  }'
+```
+
+---
+
+### Orders (Commandes)
+
+| Méthode | Endpoint | Description | Paramètres |
+|---------|----------|-------------|------------|
+| `GET` | `/orders/` | Lister toutes les commandes | `table_number`, `status` |
+| `POST` | `/orders/` | Créer/réutiliser une commande | - |
+| `GET` | `/orders/{id}/` | Récupérer une commande | - |
+| `PUT` | `/orders/{id}/` | Mettre à jour une commande | - |
+| `DELETE` | `/orders/{id}/` | Supprimer une commande | - |
+| `PATCH` | `/orders/{id}/status/` | Mettre à jour le statut | `status` |
+
+**Exemple - Créer une commande avec articles:**
+```bash
+curl -X POST http://localhost:8000/api/orders/ \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "table_number": 5,
+    "items": [
+      {
+        "product": 1,
+        "quantity": 2
+      },
+      {
+        "product": 3,
+        "quantity": 1
+      }
+    ]
+  }'
+```
+
+**Exemple - Mettre à jour le statut d'une commande:**
+```bash
+curl -X PATCH http://localhost:8000/api/orders/1/status/ \
+  -H "Authorization: Bearer TOKEN" \
+  -H "X-Admin-Password: password" \
+  -H "Content-Type: application/json" \
+  -d '{"status": "preparing"}'
+```
+
+**Exemple - Filtrer les commandes:**
+```bash
+# Commandes de la table 5
+curl -X GET "http://localhost:8000/api/orders/?table_number=5" \
+  -H "Authorization: Bearer TOKEN"
+
+# Commandes en préparation
+curl -X GET "http://localhost:8000/api/orders/?status=preparing" \
+  -H "Authorization: Bearer TOKEN"
+```
+
+---
+
+### Order Items (Lignes de Commande)
+
+| Méthode | Endpoint | Description |
+|---------|----------|-------------|
+| `GET` | `/orderitems/` | Lister tous les articles de commande |
+| `POST` | `/orderitems/` | Créer un article de commande |
+| `GET` | `/orderitems/{id}/` | Récupérer un article |
+| `PUT` | `/orderitems/{id}/` | Mettre à jour un article |
+| `DELETE` | `/orderitems/{id}/` | Supprimer un article |
+
+**Exemple - Ajouter un article à une commande existante:**
+```bash
+curl -X POST http://localhost:8000/api/orderitems/ \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "order": 1,
+    "product": 2,
+    "quantity": 1
+  }'
+```
+
+---
+
+## 💻 Exemples d'Utilisation 1. Clone/Accès au répertoire
 
 ```bash
 cd django_gestion_commande
