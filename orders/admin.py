@@ -30,7 +30,7 @@ class ProductAdmin(admin.ModelAdmin):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ('id', 'table_number', 'status', 'created_at', 'get_total')
+    list_display = ('id', 'table_number', 'status', 'created_at', 'get_total_display')
     list_filter = ('status', 'table_number')
     search_fields = ('table_number',)
     readonly_fields = ('created_at', 'updated_at')
@@ -38,7 +38,6 @@ class OrderAdmin(admin.ModelAdmin):
     def get_total_display(self, obj):
         return f"{obj.get_total():.2f} Ar"
     get_total_display.short_description = 'Total'
-    get_total_display.admin_order_field = 'id'
 
 
 @admin.register(OrderItem)
