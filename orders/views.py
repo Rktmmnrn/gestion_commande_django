@@ -13,6 +13,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
     queryset= Category.objects.all()
     serializer_class= CategorySerializer
     permission_classes= [IsAdminOrReadOnly]
+
     def get_permissions(self):
         if self.request.method in ['GET', 'HEAD', 'OPTION']:
             return [AllowAny]
@@ -23,11 +24,12 @@ class ProductViewSet(viewsets.ModelViewSet):
     serializer_class= ProductSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['available', 'category']
-    permission_classes= [IsAdminOrReadOnly]
 
-    def perform_create(self, serializer):
-        """Auto-set created_by lors de la création"""
-        serializer.save()
+    def get_permissions(self):
+        if self.request.method in ['GET', 'HEAD', 'OPTION']:
+            return [AllowAny]
+        return [IsAdminOrReadOnly]
+        
 
 class OrderViewSet(viewsets.ModelViewSet):
     queryset= Order.objects.all()
@@ -36,11 +38,10 @@ class OrderViewSet(viewsets.ModelViewSet):
     filterset_fields = ['table_number', 'status']
 
     def get_permissions(self):
-        """
-        Permissions personnalisées selon l'action
-        """
         if self.action in ['update', 'partial_update', 'destroy']:
             return [IsAdminPasswordVerified()]
+        if self.request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return [AllowAny()]
         return [IsAuthenticated()]
     
     def create(self, request, *args, **kwargs):
@@ -77,4 +78,8 @@ class OrderViewSet(viewsets.ModelViewSet):
 class OrderItemViewSet(viewsets.ModelViewSet):
     queryset = OrderItem.objects.all()
     serializer_class = OrderItemSerializer
-    permission_classes = [IsAdminOrReadOnly]
+
+    def get_permissions(self):
+        if self.request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return [AllowAny()]
+        return [IsAdminOrReadOnly()]
