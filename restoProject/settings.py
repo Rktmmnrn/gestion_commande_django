@@ -152,6 +152,7 @@ CORS_ALLOW_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
+    'x-admin-password',
 ]
 
 # Pour le développement, uniquement en dev

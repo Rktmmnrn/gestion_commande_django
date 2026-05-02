@@ -26,7 +26,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     serializer_class= OrderSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['table_number', 'status']
-    permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [IsAuthenticatedOrReadOnly]
     
     def create(self, request, *args, **kwargs):
         items_data = request.data.get('items', [])
