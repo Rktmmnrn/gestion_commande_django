@@ -10,7 +10,7 @@ from .permissions import IsAdminOrReadOnly, IsAdminPasswordVerified, IsAuthentic
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset= Category.objects.all()
     serializer_class= CategorySerializer
-    permission_classes= [IsAdminOrReadOnly]
+    permission_classes= [IsAuthenticatedOrReadOnly]
 
 
 class ProductViewSet(viewsets.ModelViewSet):
@@ -18,7 +18,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     serializer_class= ProductSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['available', 'category']
-    permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [IsAuthenticatedOrReadOnly]
 
 
 class OrderViewSet(viewsets.ModelViewSet):
