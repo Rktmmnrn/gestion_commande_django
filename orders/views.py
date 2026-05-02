@@ -1,12 +1,10 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
-from django.contrib.auth import get_user_model
 from .models import Category, Product, Order, OrderItem
 from .serializers import CategorySerializer , ProductSerializer, OrderSerializer, OrderItemSerializer
-from .permissions import IsAdminOrReadOnly, IsAdminPasswordVerified
+from .permissions import IsAdminOrReadOnly, IsAdminPasswordVerified, IsAuthenticatedOrReadOnly
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
@@ -14,35 +12,21 @@ class CategoryViewSet(viewsets.ModelViewSet):
     serializer_class= CategorySerializer
     permission_classes= [IsAdminOrReadOnly]
 
-    def get_permissions(self):
-        if self.request.method in ['GET', 'HEAD', 'OPTION']:
-            return [AllowAny]
-        return [IsAdminOrReadOnly]
 
 class ProductViewSet(viewsets.ModelViewSet):
     queryset= Product.objects.all()
     serializer_class= ProductSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['available', 'category']
+    permission_classes = [IsAdminOrReadOnly]
 
-    def get_permissions(self):
-        if self.request.method in ['GET', 'HEAD', 'OPTION']:
-            return [AllowAny]
-        return [IsAdminOrReadOnly]
-        
 
 class OrderViewSet(viewsets.ModelViewSet):
     queryset= Order.objects.all()
     serializer_class= OrderSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['table_number', 'status']
-
-    def get_permissions(self):
-        if self.action in ['update', 'partial_update', 'destroy']:
-            return [IsAdminPasswordVerified()]
-        if self.request.method in ['GET', 'HEAD', 'OPTIONS']:
-            return [AllowAny()]
-        return [IsAuthenticated()]
+    permission_classes = [IsAdminOrReadOnly]
     
     def create(self, request, *args, **kwargs):
         items_data = request.data.get('items', [])
@@ -78,8 +62,4 @@ class OrderViewSet(viewsets.ModelViewSet):
 class OrderItemViewSet(viewsets.ModelViewSet):
     queryset = OrderItem.objects.all()
     serializer_class = OrderItemSerializer
-
-    def get_permissions(self):
-        if self.request.method in ['GET', 'HEAD', 'OPTIONS']:
-            return [AllowAny()]
-        return [IsAdminOrReadOnly()]
+    permission_classes = [IsAdminOrReadOnly]

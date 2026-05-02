@@ -3,8 +3,6 @@ from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin
 from .models import Category, Product, Order, OrderItem
 
-# ====================== CONFIGURATION ADMIN ======================
-
 # Réenregistrer le User (modèle Django standard) avec une vue plus propre
 admin.site.unregister(User)
 

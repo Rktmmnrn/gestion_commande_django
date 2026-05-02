@@ -2,10 +2,6 @@ from rest_framework import permissions
 from django.contrib.auth.hashers import check_password
 
 class IsAdminPasswordVerified(permissions.BasePermission):
-    """
-    Permission qui vérifie le mot de passe admin via le header 'X-Admin-Password'.
-    Utilisée pour protéger les opérations CRUD sensibles.
-    """
     def has_permission(self, request, view):
         if request.method in permissions.SAFE_METHODS:
             return request.user and request.user.is_authenticated
@@ -28,3 +24,10 @@ class IsAdminOrReadOnly(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:
             return request.user and request.user.is_authenticated
         return IsAdminPasswordVerified().has_permission(request, view)
+
+
+class IsAuthenticatedOrReadOnly(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        return request.user and request.user.is_authenticated
