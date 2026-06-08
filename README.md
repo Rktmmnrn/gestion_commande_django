@@ -182,7 +182,7 @@ Représente une commande client pour une table spécifique.
 - `ready` - Prêt
 - `delivered` - Livré
 - `cancelled` - Annulé
-
+  
 **Exemple:**
 ```json
 {

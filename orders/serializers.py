@@ -25,6 +25,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderItem
         fields = ['id', 'order', 'product', 'product_name', 'product_price', 'quantity', 'price', 'subtotal']
+        read_only_fields = ['price']
 
     def get_subtotal(self, obj):
         return (obj.quantity or 0) * (obj.price or 0)
