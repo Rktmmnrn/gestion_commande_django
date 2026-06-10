@@ -5,6 +5,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .models import Category, Product, Order, OrderItem
 from .serializers import CategorySerializer , ProductSerializer, OrderSerializer, OrderItemSerializer
 from .permissions import IsAdminOrReadOnly, IsAdminPasswordVerified, IsAuthenticatedOrReadOnly
+from rest_framework.permissions import AllowAny
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
@@ -26,7 +27,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     serializer_class= OrderSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['table_number', 'status']
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [AllowAny]
     
     def create(self, request, *args, **kwargs):
         items_data = request.data.get('items', [])
