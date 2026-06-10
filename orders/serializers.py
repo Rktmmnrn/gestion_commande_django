@@ -2,7 +2,7 @@ from django.db import transaction
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .models import Category, Product, Order, OrderItem
+from .models import Category, Product, Order, OrderItem, Client, Table, Reservation
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -58,13 +58,14 @@ class OrderItemSerializer(serializers.ModelSerializer):
         
         return data
 
+
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     total = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
-        fields = ['id', 'table_number', 'status', 'items', 'total', 
+        fields = ['id', 'table', 'client', 'reservation', 'type_commande', 'status', 'items', 'total', 
                   'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at']
     
@@ -72,9 +73,9 @@ class OrderSerializer(serializers.ModelSerializer):
         return obj.get_total()
     
     def validate(self, data):
-        table_number = data.get('table_number')
+        table = data.get('table')
         
-        if not table_number:
+        if not table:
             raise serializers.ValidationError("Le numéro de table est requis")
         
         return data
@@ -82,7 +83,7 @@ class OrderSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         items_data = self.context.get('items', [])
         request = self.context.get('request')
-        table_number = validated_data.get('table_number')
+        table = validated_data.get('table')
         
         if not items_data:
             raise serializers.ValidationError("La commande doit au moins contenir un article")
@@ -90,17 +91,20 @@ class OrderSerializer(serializers.ModelSerializer):
         with transaction.atomic():
             # Vérifier s'il existe une commande pending pour cette table
             pending_order = Order.objects.filter(
-                table_number=table_number,
+                table=table,
                 status='pending'
             ).first()
             
             if pending_order:
                 # Réutiliser la commande existante
                 order = pending_order
-                print(f'📌 Réutilisation commande existante #{order.id} pour table {table_number}')
+                print(f'📌 Réutilisation commande existante #{order.id} pour table {table}')
             else:
                 order = Order.objects.create(**validated_data)
-                print(f'✨ Nouvelle commande #{order.id} créée pour table {table_number}')
+                if order.table:
+                    order.table.status = 'occupee'
+                    order.table.save()
+                print(f'✨ Nouvelle commande #{order.id} créée pour table {table}')
         
             # Ajouter les items à la commande (nouvelle ou existante)
             for item_data in items_data:
@@ -154,3 +158,22 @@ class OrderSerializer(serializers.ModelSerializer):
         instance.save()
 
         return super().update(instance, validated_data)
+
+
+class ClientSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Client
+        fields = ['id', 'nom', 'adresse', 'telephone', 'email']
+
+
+class TableSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Table
+        fields = '__all__'
+
+
+class ReservationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Reservation
+        fields = '__all__'
+        read_only_fields = ('token_confirmation', 'confirm_client')
