@@ -177,4 +177,4 @@ class ReservationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Reservation
         fields = '__all__'
-        read_only_fields = ('token_confirmation', 'confirm_client', 'statut')
+        read_only_fields = ('token_confirmation',)
