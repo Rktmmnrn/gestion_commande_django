@@ -63,9 +63,9 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         if order.table:
             if new_status == 'delivered':
-                order.table.status = 'libre'
+                order.table.status = 'free'
             else:
-                order.table.status = 'occupee'
+                order.table.status = 'occuped'
 
             order.table.save()
         

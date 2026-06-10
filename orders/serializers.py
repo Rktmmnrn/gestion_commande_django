@@ -74,10 +74,11 @@ class OrderSerializer(serializers.ModelSerializer):
     
     def validate(self, data):
         table = data.get('table')
-        
-        if not table:
-            raise serializers.ValidationError("Le numéro de table est requis")
-        
+        type_commande = data.get('type_commande', 'on_site')
+
+        if type_commande == 'on_site' and not table:
+            raise serializers.ValidationError("Une table est requise pour une commande sur place")
+
         return data
 
     def create(self, validated_data):
@@ -102,7 +103,7 @@ class OrderSerializer(serializers.ModelSerializer):
             else:
                 order = Order.objects.create(**validated_data)
                 if order.table:
-                    order.table.status = 'occupee'
+                    order.table.status = 'occuped'
                     order.table.save()
                 print(f'✨ Nouvelle commande #{order.id} créée pour table {table}')
         
@@ -176,4 +177,4 @@ class ReservationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Reservation
         fields = '__all__'
-        read_only_fields = ('token_confirmation', 'confirm_client')
+        read_only_fields = ('token_confirmation', 'confirm_client', 'statut')
